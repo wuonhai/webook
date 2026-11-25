@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/wuonhai/webook/internal/repository"
 	"github.com/wuonhai/webook/internal/repository/dao"
@@ -41,8 +41,14 @@ func initServer() *gin.Engine {
 	}))
 
 	// Add session middleware
-	store := cookie.NewStore([]byte("secret"))
-	server.Use(sessions.Sessions("webookSSID", store))
+	// store := cookie.NewStore([]byte("secret"))
+	store, err := redis.NewStore(16, "tcp", "localhost:6379", "", "",
+		[]byte("v7B2xJQZAffjkCkVmkpbvaGSK3wGtxGn"),
+		[]byte("v3EKaEjXyV8S2ThfFUvMB72Pj6AVkkXx"))
+	if err != nil {
+		panic(err)
+	}
+	server.Use(sessions.Sessions("wbSSID", store))
 
 	server.Use(middleware.NewLoginMiddlewareBuilder().
 		IgnorePaths("/users/login", "/users/signup").

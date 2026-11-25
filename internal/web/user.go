@@ -111,7 +111,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := u.svc.Login(ctx, domain.User{
+	userDo, err := u.svc.Login(ctx, domain.User{
 		Email:    req.Email,
 		Password: req.Password,
 	})
@@ -129,7 +129,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	}
 
 	sess := sessions.Default(ctx)
-	sess.Set("userId", user.Id)
+	sess.Set("userId", userDo.Id)
 	sess.Save()
 
 	ctx.String(http.StatusOK, "🎉login success")
@@ -153,21 +153,6 @@ type Result struct {
 	Data any    `json:"data"`
 }
 
-type editReq struct {
-	Nickname *string `json:"nickname"`
-	Birthday *string `json:"birthday"`
-	Bio      *string `json:"bio"`
-}
-
-type profileResp struct {
-	Id       int64   `json:"id"`
-	Email    string  `json:"email"`
-	Nickname *string `json:"nickname"`
-	Birthday *string `json:"birthday"`
-	Bio      *string `json:"bio"`
-	Ctime    int64   `json:"ctime"`
-}
-
 func getSessionUserId(ctx *gin.Context) (int64, bool) {
 	val := sessions.Default(ctx).Get("userId")
 	userId, ok := val.(int64)
@@ -177,12 +162,12 @@ func getSessionUserId(ctx *gin.Context) (int64, bool) {
 	return userId, true
 }
 
-func validateEditReq(userId int64, req editReq, now time.Time) (domain.UserProfileUpdate, map[string]string) {
+func validateProfileFields(userId int64, nickname, birthday, bio *string, now time.Time) (domain.UserProfileUpdate, map[string]string) {
 	update := domain.UserProfileUpdate{UserId: userId}
 	fieldErrs := make(map[string]string)
 
-	if req.Nickname != nil {
-		trimmed := strings.TrimSpace(*req.Nickname)
+	if nickname != nil {
+		trimmed := strings.TrimSpace(*nickname)
 		count := utf8.RuneCountInString(trimmed)
 		if count == 0 {
 			fieldErrs["nickname"] = "昵称不能为空"
@@ -193,11 +178,11 @@ func validateEditReq(userId int64, req editReq, now time.Time) (domain.UserProfi
 		}
 	}
 
-	if req.Birthday != nil {
-		raw := strings.TrimSpace(*req.Birthday)
+	if birthday != nil {
+		raw := strings.TrimSpace(*birthday)
 		if raw == "" {
 			update.ClearBirthday = true
-		} else if t, err := time.Parse(time.DateOnly, raw); err != nil {
+		} else if t, err := time.Parse("2006-01-02", raw); err != nil {
 			fieldErrs["birthday"] = "生日格式必须为 YYYY-MM-DD 且为有效日期"
 		} else {
 			parsed := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
@@ -213,8 +198,8 @@ func validateEditReq(userId int64, req editReq, now time.Time) (domain.UserProfi
 		}
 	}
 
-	if req.Bio != nil {
-		trimmed := strings.TrimSpace(*req.Bio)
+	if bio != nil {
+		trimmed := strings.TrimSpace(*bio)
 		if utf8.RuneCountInString(trimmed) > maxBioRunes {
 			fieldErrs["bio"] = "个人简介长度不能超过 500 个字符"
 		} else {
@@ -225,34 +210,35 @@ func validateEditReq(userId int64, req editReq, now time.Time) (domain.UserProfi
 	return update, fieldErrs
 }
 
-func buildProfileResp(user domain.User) profileResp {
-	var birthday *string
-	if user.Birthday != nil {
-		formatted := user.Birthday.UTC().Format(time.DateOnly)
-		birthday = &formatted
+func formatBirthday(birthday *time.Time) *string {
+	if birthday == nil {
+		return nil
 	}
-	var ctime int64
-	if !user.Ctime.IsZero() {
-		ctime = user.Ctime.UnixMilli()
+	formatted := birthday.UTC().Format("2006-01-02")
+	return &formatted
+}
+
+func formatCtime(ctime time.Time) int64 {
+	if ctime.IsZero() {
+		return 0
 	}
-	return profileResp{
-		Id:       user.Id,
-		Email:    user.Email,
-		Nickname: user.Nickname,
-		Birthday: birthday,
-		Bio:      user.Bio,
-		Ctime:    ctime,
-	}
+	return ctime.UnixMilli()
 }
 
 func (u *UserHandler) Edit(ctx *gin.Context) {
+	type EditReq struct {
+		Nickname *string `json:"nickname"`
+		Birthday *string `json:"birthday"`
+		Bio      *string `json:"bio"`
+	}
+
 	userId, ok := getSessionUserId(ctx)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{Code: codeUnauthorized, Msg: "未登录或会话无效"})
 		return
 	}
 
-	var req editReq
+	var req EditReq
 	// Use ShouldBindJSON so malformed JSON still returns HTTP 200 with unified Result payload.
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusOK, Result{Code: codeBadRequest, Msg: "请求参数格式错误"})
@@ -264,7 +250,7 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 		return
 	}
 
-	update, fieldErrs := validateEditReq(userId, req, time.Now())
+	update, fieldErrs := validateProfileFields(userId, req.Nickname, req.Birthday, req.Bio, time.Now())
 	if len(fieldErrs) > 0 {
 		ctx.JSON(http.StatusOK, Result{Code: codeBadRequest, Msg: "参数校验失败", Data: fieldErrs})
 		return
@@ -279,6 +265,15 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
+	type ProfileResp struct {
+		Id       int64   `json:"id"`
+		Email    string  `json:"email"`
+		Nickname *string `json:"nickname"`
+		Birthday *string `json:"birthday"`
+		Bio      *string `json:"bio"`
+		Ctime    int64   `json:"ctime"`
+	}
+
 	userId, ok := getSessionUserId(ctx)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{Code: codeUnauthorized, Msg: "未登录或会话无效"})
@@ -298,6 +293,13 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Result{
 		Code: codeSuccess,
 		Msg:  "success",
-		Data: buildProfileResp(userDo),
+		Data: ProfileResp{
+			Id:       userDo.Id,
+			Email:    userDo.Email,
+			Nickname: userDo.Nickname,
+			Birthday: formatBirthday(userDo.Birthday),
+			Bio:      userDo.Bio,
+			Ctime:    formatCtime(userDo.Ctime),
+		},
 	})
 }

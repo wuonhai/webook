@@ -5,9 +5,9 @@ import (
 )
 
 func InitTable(db *gorm.DB) error {
-	return db.AutoMigrate(&UserPO{})
+	return db.AutoMigrate(&User{})
 }
 
-func (UserPO) TableName() string {
+func (User) TableName() string {
 	return "users"
 }

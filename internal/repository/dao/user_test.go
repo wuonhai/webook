@@ -16,19 +16,19 @@ func TestBuildProfileUpdates(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		update   UserProfileUpdatePO
+		update   UserProfileUpdate
 		expected map[string]any
 	}{
 		{
 			name:   "bio nil omits bio key",
-			update: UserProfileUpdatePO{Id: 1},
+			update: UserProfileUpdate{Id: 1},
 			expected: map[string]any{
 				"utime": fixedNow,
 			},
 		},
 		{
 			name:   "bio empty string sets untyped nil",
-			update: UserProfileUpdatePO{Id: 1, Bio: ptr("")},
+			update: UserProfileUpdate{Id: 1, Bio: ptr("")},
 			expected: map[string]any{
 				"utime": fixedNow,
 				"bio":   nil,
@@ -36,7 +36,7 @@ func TestBuildProfileUpdates(t *testing.T) {
 		},
 		{
 			name:   "bio non-empty sets bio value",
-			update: UserProfileUpdatePO{Id: 1, Bio: ptr("hello")},
+			update: UserProfileUpdate{Id: 1, Bio: ptr("hello")},
 			expected: map[string]any{
 				"utime": fixedNow,
 				"bio":   "hello",
@@ -44,7 +44,7 @@ func TestBuildProfileUpdates(t *testing.T) {
 		},
 		{
 			name:   "clear birthday sets untyped nil",
-			update: UserProfileUpdatePO{Id: 1, ClearBirthday: true, Birthday: ptr(int64(123))},
+			update: UserProfileUpdate{Id: 1, ClearBirthday: true, Birthday: ptr(int64(123))},
 			expected: map[string]any{
 				"utime":    fixedNow,
 				"birthday": nil,
@@ -52,7 +52,7 @@ func TestBuildProfileUpdates(t *testing.T) {
 		},
 		{
 			name:   "birthday 1970-01-01 sets zero timestamp",
-			update: UserProfileUpdatePO{Id: 1, Birthday: ptr(int64(0))},
+			update: UserProfileUpdate{Id: 1, Birthday: ptr(int64(0))},
 			expected: map[string]any{
 				"utime":    fixedNow,
 				"birthday": int64(0),
@@ -60,7 +60,7 @@ func TestBuildProfileUpdates(t *testing.T) {
 		},
 		{
 			name:   "birthday pre-1970 sets negative timestamp",
-			update: UserProfileUpdatePO{Id: 1, Birthday: ptr(int64(-145756800000))},
+			update: UserProfileUpdate{Id: 1, Birthday: ptr(int64(-145756800000))},
 			expected: map[string]any{
 				"utime":    fixedNow,
 				"birthday": int64(-145756800000),
@@ -68,7 +68,7 @@ func TestBuildProfileUpdates(t *testing.T) {
 		},
 		{
 			name: "nickname set updates nickname",
-			update: UserProfileUpdatePO{
+			update: UserProfileUpdate{
 				Id:       1,
 				Nickname: ptr("小明"),
 			},

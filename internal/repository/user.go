@@ -24,11 +24,11 @@ func NewUserRepository(dao *dao.UserDao) *UserRepository {
 	}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user domain.User) error {
+func (r *UserRepository) Create(ctx context.Context, userDo domain.User) error {
 
-	return r.dao.Insert(ctx, dao.UserPO{
-		Email:    user.Email,
-		Password: user.Password,
+	return r.dao.Insert(ctx, dao.User{
+		Email:    userDo.Email,
+		Password: userDo.Password,
 	})
 }
 
@@ -86,7 +86,7 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 }
 
 func (r *UserRepository) UpdateProfile(ctx context.Context, update domain.UserProfileUpdate) error {
-	po := dao.UserProfileUpdatePO{
+	updatePo := dao.UserProfileUpdate{
 		Id:            update.UserId,
 		Nickname:      update.Nickname,
 		ClearBirthday: update.ClearBirthday,
@@ -94,7 +94,7 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, update domain.UserPr
 	}
 	if !update.ClearBirthday && update.Birthday != nil {
 		ms := update.Birthday.UTC().UnixMilli()
-		po.Birthday = &ms
+		updatePo.Birthday = &ms
 	}
-	return r.dao.UpdateProfileById(ctx, po)
+	return r.dao.UpdateProfileById(ctx, updatePo)
 }

@@ -24,7 +24,7 @@ func NewUserDao(db *gorm.DB) *UserDao {
 	}
 }
 
-func (dao *UserDao) Insert(ctx context.Context, userPo UserPO) error {
+func (dao *UserDao) Insert(ctx context.Context, userPo User) error {
 
 	// consider to encrypt the password before saving to database
 	now := time.Now().UnixMilli()
@@ -42,30 +42,30 @@ func (dao *UserDao) Insert(ctx context.Context, userPo UserPO) error {
 	return err
 }
 
-func (dao *UserDao) FindByEmail(ctx context.Context, email string) (UserPO, error) {
-	var userPo UserPO
+func (dao *UserDao) FindByEmail(ctx context.Context, email string) (User, error) {
+	var userPo User
 
 	err := dao.db.WithContext(ctx).Where("email = ?", email).First(&userPo).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return UserPO{}, ErrUserNotFound
+		return User{}, ErrUserNotFound
 	}
 
 	return userPo, err
 }
 
-func (dao *UserDao) FindById(ctx context.Context, id int64) (UserPO, error) {
-	var userPo UserPO
+func (dao *UserDao) FindById(ctx context.Context, id int64) (User, error) {
+	var userPo User
 
 	err := dao.db.WithContext(ctx).Where("id = ?", id).First(&userPo).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return UserPO{}, ErrUserNotFound
+		return User{}, ErrUserNotFound
 	}
 
 	return userPo, err
 }
 
-// UserProfileUpdatePO carries nullable fields for partial updates in the users table.
-type UserProfileUpdatePO struct {
+// UserProfileUpdate carries nullable fields for partial updates in the users table.
+type UserProfileUpdate struct {
 	Id            int64
 	Nickname      *string
 	Birthday      *int64
@@ -73,7 +73,7 @@ type UserProfileUpdatePO struct {
 	Bio           *string
 }
 
-func buildProfileUpdates(update UserProfileUpdatePO, now int64) map[string]any {
+func buildProfileUpdates(update UserProfileUpdate, now int64) map[string]any {
 	updates := map[string]any{
 		"utime": now,
 	}
@@ -96,15 +96,15 @@ func buildProfileUpdates(update UserProfileUpdatePO, now int64) map[string]any {
 	return updates
 }
 
-func (dao *UserDao) UpdateProfileById(ctx context.Context, update UserProfileUpdatePO) error {
+func (dao *UserDao) UpdateProfileById(ctx context.Context, update UserProfileUpdate) error {
 	updates := buildProfileUpdates(update, time.Now().UnixMilli())
 	return dao.db.WithContext(ctx).
-		Model(&UserPO{}).
+		Model(&User{}).
 		Where("id = ?", update.Id).
 		Updates(updates).Error
 }
 
-type UserPO struct {
+type User struct {
 	Id       int64  `gorm:"primaryKey;autoIncrement"`
 	Email    string `gorm:"unique"`
 	Password string

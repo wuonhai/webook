@@ -25,22 +25,22 @@ func NewUserService(repo *repository.UserRepository) *UserService {
 	}
 }
 
-func (svc *UserService) Signup(ctx context.Context, user domain.User) error {
+func (svc *UserService) Signup(ctx context.Context, userDo domain.User) error {
 
 	// consider to encrypt the password before saving to database
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(userDo.Password), bcrypt.DefaultCost)
 
 	if err != nil {
 		return err
 	}
 
-	user.Password = string(hash)
+	userDo.Password = string(hash)
 
-	return svc.repo.Create(ctx, user)
+	return svc.repo.Create(ctx, userDo)
 }
 
-func (svc *UserService) Login(ctx context.Context, user domain.User) (domain.User, error) {
-	userFind, err := svc.repo.FindByEmail(ctx, user.Email)
+func (svc *UserService) Login(ctx context.Context, userDo domain.User) (domain.User, error) {
+	userFind, err := svc.repo.FindByEmail(ctx, userDo.Email)
 	if errors.Is(err, repository.ErrUserNotFound) {
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
@@ -49,7 +49,7 @@ func (svc *UserService) Login(ctx context.Context, user domain.User) (domain.Use
 		return domain.User{}, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(userFind.Password), []byte(user.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(userFind.Password), []byte(userDo.Password)); err != nil {
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 
